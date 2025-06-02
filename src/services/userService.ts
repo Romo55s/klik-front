@@ -1,91 +1,131 @@
-import { createApiClient } from './api';
+import axios from 'axios';
+import type { User, UserWithProfile, Profile, ProfileFormData } from '../interfaces/user.interface';
+import type { Card } from '../interfaces/card.interface';
+import type { ScanLog } from '../interfaces/scan.interface';
 
-export type UserRole = 'user' | 'admin';
-
-export interface User {
-  user_id: string;
-  email: string;
-  profile_id?: string;
-  url_id?: string;
-  token_auth?: string;
-  role: UserRole;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Profile {
-  profile_id: string;
-  user_id: string;
-  name: string;
-  bio: string;
-  avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface UserWithProfile {
-  user: User;
-  profile: Profile;
-}
-
-export const createUserService = (token: string) => {
-  const api = createApiClient(token);
+export function createUserService(token: string) {
+  const api = axios.create({
+    baseURL: 'http://localhost:3000/api',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
 
   return {
-    async createUser(profile: { email: string; name: string; picture?: string }) {
-      try {
-        console.log('Creating user with profile:', profile);
-        const response = await api.createUser({
-          email: profile.name,
-          name: profile.name,
-          avatar_url: profile.picture || null,
-          bio: 'Welcome to my profile!'
-        });
-        console.log('User creation response:', response);
-        return response as UserWithProfile;
-      } catch (error) {
-        console.error('Error creating user:', error);
-        throw error;
-      }
+    // User methods
+    async getCurrentUser(): Promise<UserWithProfile> {
+      const response = await api.get('/users/me');
+      return response.data;
     },
 
-    async getCurrentUser() {
-      try {
-        console.log('Fetching current user...');
-        const response = await api.getCurrentUser();
-        console.log('Current user response:', response);
-        return response as UserWithProfile;
-      } catch (error) {
-        console.error('Error getting current user:', error);
-        throw error;
-      }
+    async updateCurrentUser(data: { email?: string; name?: string; bio?: string; avatar_url?: string }): Promise<UserWithProfile> {
+      const response = await api.put('/users/me', data);
+      return response.data;
     },
 
-    async updateUserProfile(profile: Partial<Profile>) {
-      try {
-        console.log('Updating user profile:', profile);
-        const response = await api.updateProfile({
-          name: profile.name,
-          bio: profile.bio,
-          avatar_url: profile.avatar_url
-        });
-        console.log('Profile update response:', response);
-        return response as UserWithProfile;
-      } catch (error) {
-        console.error('Error updating user profile:', error);
-        throw error;
-      }
+    async deleteCurrentUser(): Promise<void> {
+      await api.delete('/users/me');
     },
 
-    async deleteUser() {
-      try {
-        console.log('Deleting user...');
-        await api.deleteCurrentUser();
-        console.log('User deleted successfully');
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        throw error;
-      }
+    // Profile methods
+    async getProfile(): Promise<Profile> {
+      const response = await api.get('/profiles');
+      return response.data;
+    },
+
+    async updateUserProfile(profileData: ProfileFormData): Promise<Profile> {
+      const response = await api.put('/profiles', profileData);
+      return response.data;
+    },
+
+    async deleteProfile(): Promise<void> {
+      await api.delete('/profiles');
+    },
+
+    // Card methods
+    async createCard(data: { cardId: string; name: string; description: string }): Promise<Card> {
+      const response = await api.post('/cards', data);
+      return response.data;
+    },
+
+    async getCards(): Promise<Card[]> {
+      const response = await api.get('/cards');
+      return response.data;
+    },
+
+    async getCard(id: string): Promise<Card> {
+      const response = await api.get(`/cards/${id}`);
+      return response.data;
+    },
+
+    async updateCard(id: string, data: { name?: string; description?: string }): Promise<Card> {
+      const response = await api.put(`/cards/${id}`, data);
+      return response.data;
+    },
+
+    async deleteCard(id: string): Promise<void> {
+      await api.delete(`/cards/${id}`);
+    },
+
+    // Scan methods
+    async createScanLog(data: { card_id: string; scan_type?: string; location?: string; device_info?: string }): Promise<ScanLog> {
+      const response = await api.post('/scan-logs', data);
+      return response.data;
+    },
+
+    async getScanLogs(): Promise<ScanLog[]> {
+      const response = await api.get('/scan-logs');
+      return response.data;
+    },
+
+    async getScanLog(id: string): Promise<ScanLog> {
+      const response = await api.get(`/scan-logs/${id}`);
+      return response.data;
+    },
+
+    async deleteScanLog(id: string): Promise<void> {
+      await api.delete(`/scan-logs/${id}`);
+    },
+
+    async getScanLogsByCard(cardId: string): Promise<ScanLog[]> {
+      const response = await api.get(`/scan-logs/card/${cardId}`);
+      return response.data;
+    },
+
+    // Admin methods
+    async getAllUsers(): Promise<UserWithProfile[]> {
+      const response = await api.get('/users');
+      return response.data;
+    },
+
+    async getUserById(id: string): Promise<User> {
+      const response = await api.get(`/users/${id}`);
+      return response.data;
+    },
+
+    async updateUserRole(id: string, role: 'user' | 'admin'): Promise<User> {
+      const response = await api.put(`/users/${id}/role`, { role });
+      return response.data;
+    },
+
+    async deleteUser(id: string): Promise<void> {
+      await api.delete(`/users/${id}`);
+    },
+
+    async getAllProfiles(): Promise<Profile[]> {
+      const response = await api.get('/profiles');
+      return response.data;
+    },
+
+    async getProfileById(id: string): Promise<Profile> {
+      const response = await api.get(`/profiles/${id}`);
+      return response.data;
+    },
+
+    async getAllScanLogs(): Promise<ScanLog[]> {
+      const response = await api.get('/scan-logs');
+      return response.data;
     }
   };
-}; 
+} 
