@@ -1,15 +1,15 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 import { Navigation } from './components/Navigation';
 import { Home } from './components/Home';
 import { Profile } from './components/Profile';
+import { CardClaim } from './components/CardClaim';
 import './App.css';
 
 function App() {
-  const { isAuthenticated } = useAuth();
-
+  const { isAuthenticated, userData } = useAuth();
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
@@ -18,10 +18,22 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route 
-              path="/profile" 
+              path="/profile/:username" 
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  {userData ? (
+                    <Navigate to={`/profile/${userData.user.username}`} replace />
+                  ) : (
+                    <Navigate to="/" replace />
+                  )}
                 </ProtectedRoute>
               } 
             />

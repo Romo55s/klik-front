@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Card } from '../interfaces/card.interface';
+import type { Card, CreateCardDto } from '../interfaces/card.interface';
 
 export function createCardService(token: string) {
   const api = axios.create({
@@ -11,7 +11,7 @@ export function createCardService(token: string) {
   });
 
   return {
-    async createCard(data: { cardId: string; name: string; description: string }): Promise<Card> {
+    async createCard(data: CreateCardDto): Promise<Card> {
       const response = await api.post('/cards', data);
       return response.data;
     },
@@ -23,6 +23,21 @@ export function createCardService(token: string) {
 
     async getCard(id: string): Promise<Card> {
       const response = await api.get(`/cards/${id}`);
+      return response.data;
+    },
+
+    async activateCard(cardId: string): Promise<Card> {
+      const response = await api.post(`/cards/${cardId}/activate`);
+      return response.data;
+    },
+
+    async deactivateCard(cardId: string): Promise<Card> {
+      const response = await api.post(`/cards/${cardId}/deactivate`);
+      return response.data;
+    },
+
+    async claimCard(cardId: string): Promise<Card> {
+      const response = await api.post(`/cards/${cardId}/claim`);
       return response.data;
     },
 

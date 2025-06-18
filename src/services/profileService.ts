@@ -26,6 +26,11 @@ export function createProfileService(token: string) {
       await api.delete('/profile/me');
     },
 
+    async getProfileByUsername(username: string): Promise<{ profile: Profile; cards: any[] }> {
+      const response = await api.get(`/profile/${username}`);
+      return response.data;
+    },
+
     // Admin profile methods
     async getAllProfiles(): Promise<Profile[]> {
       const response = await api.get('/profile');

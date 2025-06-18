@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
-      console.log('Auth0 user data:', user)
+      console.log('Auth0 user data:', user);
       console.log('Audience api ->', import.meta.env.VITE_AUTH0_API_AUDIENCE);
       const tokenResponse = await getAccessTokenSilently({
         authorizationParams: {
@@ -52,9 +52,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.log('User not found, creating new user...');
         const newUser = await userService.createUser({
-          email: user.name!,
+          email: user.email!,
           name: user.name || user.email!,
-          picture: user.picture
+          picture: user.picture || '',
+          username: '' // Let the backend handle the username
         });
         console.log('New user created:', newUser);
         setUserData(newUser);
