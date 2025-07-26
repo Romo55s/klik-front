@@ -26,6 +26,14 @@ function App() {
               } 
             />
             <Route 
+              path="/profile/:username/claim" 
+              element={
+                <ProtectedRoute>
+                  <CardClaim />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/profile" 
               element={
                 <ProtectedRoute>

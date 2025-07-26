@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Card, CreateCardDto } from '../interfaces/card.interface';
+import type { Card, CreateCardDto, UpdateCardDto } from '../interfaces/card.interface';
 
 export function createCardService(token: string) {
   const api = axios.create({
@@ -26,6 +26,11 @@ export function createCardService(token: string) {
       return response.data;
     },
 
+    async getCardsByProfile(profileUsername: string): Promise<any> {
+      const response = await api.get(`/cards/profile/${profileUsername}`);
+      return response.data;
+    },
+
     async activateCard(cardId: string): Promise<Card> {
       const response = await api.post(`/cards/${cardId}/activate`);
       return response.data;
@@ -36,8 +41,8 @@ export function createCardService(token: string) {
       return response.data;
     },
 
-    async claimCard(cardId: string): Promise<Card> {
-      const response = await api.post(`/cards/${cardId}/claim`);
+    async claimCard(profileUserId: string): Promise<Card> {
+      const response = await api.post('/cards/claim', { profileUserId });
       return response.data;
     },
 

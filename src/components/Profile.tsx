@@ -125,7 +125,7 @@ export function Profile() {
   };
 
   const handleQRScan = (scannedUsername: string) => {
-    navigate(`/profile/${scannedUsername}/claim`);
+    navigate(`/profile/${scannedUsername}/claim`, { replace: true });
   };
 
   const isOwnProfile = userData?.user?.username === username;

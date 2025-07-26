@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QrcodeOutlined } from '@ant-design/icons';
+import { verifyQrCode } from '../services/qrService';
 
 interface QRScannerProps {
   onScan: (username: string) => void;
@@ -9,6 +10,9 @@ interface QRScannerProps {
 export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     if (isModalOpen && !scanner) {
@@ -22,19 +26,61 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
         false
       );
 
-      newScanner.render((decodedText) => {
+      newScanner.render(async (decodedText) => {
         try {
-          // Extract username from the decoded URL
-          const url = new URL(decodedText);
-          const pathParts = url.pathname.split('/');
-          const username = pathParts[pathParts.length - 1];
-          if (username) {
-            onScan(username);
-            setIsModalOpen(false);
-            newScanner.clear();
+          setLoading(true);
+          setMessage(null);
+          setMessageType(null);
+          // Use qrService to verify QR code
+          const data = await verifyQrCode(decodedText);
+          if (data.success) {
+            setMessage('QR code verified successfully!');
+            setMessageType('success');
+            // Extract username from the QR data
+            let username = '';
+            console.log('🔍 QR Code Debug Info:');
+            console.log('  - Decoded text:', decodedText);
+            console.log('  - Backend response:', data);
+            
+            if (data.username) {
+              // If the backend returns the username directly
+              username = data.username;
+              console.log('  - Using username from backend:', username);
+            } else {
+              // Extract username from the URL if backend doesn't return it
+              try {
+                const url = new URL(decodedText);
+                const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+                username = pathParts[pathParts.length - 1]; // Get the last part of the path
+                console.log('  - Extracted username from URL:', username);
+                console.log('  - URL pathname:', url.pathname);
+                console.log('  - Path parts:', pathParts);
+              } catch (error) {
+                console.error('Error parsing URL:', error);
+                setMessage('Invalid QR code format.');
+                setMessageType('error');
+                return;
+              }
+            }
+            
+            console.log('  - Final username being passed:', username);
+            onScan(username); // Pass only the username
+            setTimeout(() => {
+              setIsModalOpen(false);
+              setMessage(null);
+              setMessageType(null);
+            }, 1500);
+          } else {
+            setMessage(data.message || 'Verification failed.');
+            setMessageType('error');
           }
         } catch (error) {
-          console.error('Invalid QR code:', error);
+          setMessage('An error occurred during verification.');
+          setMessageType('error');
+          console.error('Verification error:', error);
+        } finally {
+          setLoading(false);
+          newScanner.clear();
         }
       }, (error) => {
         // Ignore scanning errors
@@ -75,20 +121,24 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
       </button>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md border-2 border-blue-500 shadow-lg">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Scan QR Code</h3>
+              <h3 className="text-lg font-semibold text-white">Scan QR Code</h3>
               <button
                 onClick={handleCloseScanner}
-                className="text-gray-400 hover:text-gray-500"
+                className="text-gray-300 hover:text-white"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div id="qr-reader" className="w-full"></div>
+            <div id="qr-reader" className="w-full bg-black rounded border-2 border-dashed border-blue-400 p-2 mb-4"></div>
+            {loading && <div className="text-blue-400 text-center mb-2">Verifying...</div>}
+            {message && (
+              <div className={`text-center mb-2 ${messageType === 'success' ? 'text-green-400' : 'text-red-400'}`}>{message}</div>
+            )}
           </div>
         </div>
       )}
