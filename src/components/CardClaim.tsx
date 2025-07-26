@@ -24,19 +24,27 @@ export const CardClaim: React.FC = () => {
         const token = await getAccessToken();
         const cardService = createCardService(token);
         
-        // Instead of getting all cards, check if the current user already has cards for this profile
-        // This avoids the 400 error from getUserCards when user has no url_id_text
+        // Check if user already has a card (single card model)
         try {
-          const profileCards = await cardService.getCardsByProfile(username);
-          if (profileCards && profileCards.cards && profileCards.cards.length > 0) {
+          const userCard = await cardService.getCard();
+          console.log('User card response:', userCard);
+          
+          if (userCard && userCard.status === 'claimed') {
             setCardStatus('claimed');
           } else {
             setCardStatus('available');
           }
-        } catch (profileError) {
-          // If getCardsByProfile fails, assume the card is available
-          console.log('Profile cards not found, assuming available:', profileError);
-          setCardStatus('available');
+        } catch (cardError: any) {
+          if (cardError.message === 'NO_CARD_FOUND') {
+            // User doesn't have a card yet - this is normal
+            console.log('User has no card yet, available to create:', cardError);
+            setCardStatus('available');
+          } else {
+            // Real error
+            console.error('Error checking card status:', cardError);
+            setCardStatus('error');
+            setError('Failed to check card status');
+          }
         }
       } catch (error) {
         console.error('Error checking card status:', error);
@@ -50,7 +58,7 @@ export const CardClaim: React.FC = () => {
     checkCardStatus();
   }, [username, getAccessToken]);
 
-  const handleClaimCard = async () => {
+  const handleCreateCard = async () => {
     if (!isAuthenticated || !username) {
       // Show error toast
       const toast = document.createElement('div');
@@ -68,26 +76,27 @@ export const CardClaim: React.FC = () => {
       const token = await getAccessToken();
       const cardService = createCardService(token);
       
-      // The backend expects profileUserId, but we have username
-      // We need to get the user ID for this username first
-      // For now, let's try to claim with the username and see if the backend can handle it
-      await cardService.claimCard(username);
+      // Create the user's single card
+      await cardService.createCard({
+        name: 'My Professional Card',
+        description: 'My professional digital card'
+      });
       
       // Show success toast
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg';
-      toast.textContent = 'Card claimed successfully!';
+      toast.textContent = 'Card created successfully!';
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
       
-      navigate('/dashboard');
+      navigate('/profile');
     } catch (error) {
-      console.error('Error claiming card:', error);
+      console.error('Error creating card:', error);
       
       // Show error toast
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg';
-      toast.textContent = 'Failed to claim card. Please try again.';
+      toast.textContent = 'Failed to create card. Please try again.';
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
     } finally {
@@ -170,13 +179,13 @@ export const CardClaim: React.FC = () => {
   return (
     <div className="max-w-2xl mx-auto p-6">
       <div className="bg-white shadow-lg rounded-lg p-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">Claim Your Card</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">Create Your Card</h2>
         <p className="text-gray-600 text-center mb-8">
-          You've scanned a QR code for a physical card. Click the button below to claim this card and activate it.
+          You've scanned a QR code. Click the button below to create your professional digital card.
         </p>
         <div className="flex justify-center">
           <button
-            onClick={handleClaimCard}
+            onClick={handleCreateCard}
             disabled={loading}
             className={`
               px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-sm
@@ -191,10 +200,10 @@ export const CardClaim: React.FC = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Claiming...
+                Creating...
               </div>
             ) : (
-              'Claim Card'
+              'Create Card'
             )}
           </button>
         </div>

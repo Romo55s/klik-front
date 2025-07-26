@@ -5,8 +5,14 @@ export interface Profile {
   username: string;
   bio: string;
   avatar_url: string | null;
+  links?: Record<string, string>;
   created_at: string;
   updated_at: string;
+}
+
+export interface AddLinkRequest {
+  linkName: string;
+  linkUrl: string;
 }
 
 export interface User {
@@ -33,4 +39,5 @@ export interface ProfileFormData {
   username: string;
   bio: string;
   avatar_url: string;
+  links?: Record<string, string>;
 } 

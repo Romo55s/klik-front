@@ -3,7 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { createProfileService } from '../services/profileService';
 import { createUserService } from '../services/userService';
+import { createCardService } from '../services/cardService';
 import { QRScanner } from './QRScanner';
+import { CardManager } from './CardManager';
+import { AddLinkForm } from './AddLinkForm';
+import { ProfileLinks } from './ProfileLinks';
+import { DeleteAccountModal } from './DeleteAccountModal';
 import type { ProfileFormData } from '../interfaces/user.interface';
 
 export function Profile() {
@@ -20,19 +25,23 @@ export function Profile() {
     avatar_url: ''
   });
   const [profileData, setProfileData] = useState<any>(null);
+  const [showAddLinkForm, setShowAddLinkForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [hasCard, setHasCard] = useState<boolean | null>(null);
+  const [userLinks, setUserLinks] = useState<Record<string, string> | null>(null);
+  const [loadingLinks, setLoadingLinks] = useState(false);
 
   useEffect(() => {
     const initializeUser = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const token = await getAccessToken();
-        const userService = createUserService(token);
-        const profileService = createProfileService(token);
         
         if (username) {
           // If username is provided in URL params, fetch that profile
           console.log('🔍 Fetching profile for username:', username);
+          const token = await getAccessToken();
+          const profileService = createProfileService(token);
           const response = await profileService.getProfileByUsername(username);
           console.log('✅ Profile data received:', response);
           setProfileData(response);
@@ -54,8 +63,25 @@ export function Profile() {
       }
     };
 
-    initializeUser();
-  }, [isAuthenticated, getAccessToken, username, userData, navigate]);
+    // Only fetch if we have a username or need to redirect
+    if (username || (isAuthenticated && userData?.user?.username && !username)) {
+      initializeUser();
+    }
+  }, [username, isAuthenticated, userData?.user?.username, getAccessToken, navigate]);
+
+  const isOwnProfile = userData?.user?.username === username;
+
+  // Check if user has a card and fetch links
+  useEffect(() => {
+    if (isOwnProfile) {
+      // Viewing own profile - fetch own links and check card
+      checkUserCard();
+      fetchUserLinks();
+    } else if (username && isAuthenticated) {
+      // Viewing someone else's profile - fetch their links
+      fetchOtherUserLinks(username);
+    }
+  }, [isOwnProfile, username, isAuthenticated, userData?.user?.username]);
 
   const handleEdit = () => {
     if (userData?.user) {
@@ -98,29 +124,82 @@ export function Profile() {
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const token = await getAccessToken();
-        const profileService = createProfileService(token);
-        const userService = createUserService(token);
-
-        // First delete the profile
-        await profileService.deleteProfile();
-        
-        // Then delete the user (this will also handle Auth0 deletion)
-        await userService.deleteCurrentUser();
-        
-        // Finally, log out the user
-        logout();
-      } catch (error) {
-        console.error('Error deleting account:', error);
-        setError('Failed to delete account');
-      } finally {
-        setIsLoading(false);
+  const checkUserCard = async () => {
+    if (!isAuthenticated || !userData?.user?.username) return;
+    
+    try {
+      const token = await getAccessToken();
+      const cardService = createCardService(token);
+      await cardService.getCard();
+      setHasCard(true);
+    } catch (error: any) {
+      if (error.message === 'NO_CARD_FOUND') {
+        setHasCard(false);
+      } else {
+        setHasCard(null); // Error state
       }
+    }
+  };
+
+  const fetchUserLinks = async () => {
+    if (!isAuthenticated || !userData?.user?.username) return;
+    
+    try {
+      setLoadingLinks(true);
+      const token = await getAccessToken();
+      const profileService = createProfileService(token);
+      const links = await profileService.getLinks();
+      setUserLinks(links);
+    } catch (error) {
+      console.error('Error fetching user links:', error);
+      setUserLinks(null);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  const fetchOtherUserLinks = async (targetUsername: string) => {
+    try {
+      setLoadingLinks(true);
+      const token = await getAccessToken();
+      const profileService = createProfileService(token);
+      const { links, user } = await profileService.getUserLinks(targetUsername);
+      setUserLinks(links);
+      // Note: We could also update profile data with user info if needed
+    } catch (error) {
+      console.error('Error fetching other user links:', error);
+      setUserLinks(null);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const token = await getAccessToken();
+      const profileService = createProfileService(token);
+      const userService = createUserService(token);
+
+      // First delete the profile
+      await profileService.deleteProfile();
+      
+      // Then delete the user (this will also handle Auth0 deletion)
+      await userService.deleteCurrentUser();
+      
+      // Finally, log out the user
+      setShowDeleteModal(false);
+      logout();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setError('Failed to delete account');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -128,7 +207,55 @@ export function Profile() {
     navigate(`/profile/${scannedUsername}/claim`, { replace: true });
   };
 
-  const isOwnProfile = userData?.user?.username === username;
+  const handleAddLink = async (linkName: string, linkUrl: string) => {
+    try {
+      const token = await getAccessToken();
+      const profileService = createProfileService(token);
+      await profileService.addLink(linkName, linkUrl);
+      
+      // Refresh links
+      await fetchUserLinks();
+      
+      // Show success message
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      toast.textContent = 'Link added successfully!';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+      
+      setShowAddLinkForm(false);
+    } catch (error) {
+      console.error('Error adding link:', error);
+      throw error;
+    }
+  };
+
+  const handleRemoveLink = async (linkName: string) => {
+    try {
+      const token = await getAccessToken();
+      const profileService = createProfileService(token);
+      await profileService.removeLink(linkName);
+      
+      // Refresh links
+      await fetchUserLinks();
+      
+      // Show success message
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      toast.textContent = 'Link removed successfully!';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    } catch (error) {
+      console.error('Error removing link:', error);
+      
+      // Show error message
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      toast.textContent = 'Failed to remove link';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -202,24 +329,32 @@ export function Profile() {
                 placeholder="Tell us about yourself"
               />
             </div>
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-between items-center">
               <button
-                onClick={() => setIsEditing(false)}
-                className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                onClick={handleDelete}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               >
-                Cancel
+                Delete Account
               </button>
-              <button
-                onClick={handleSave}
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              >
-                Save Changes
-              </button>
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-white shadow-md rounded-lg p-6">
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
           <div className="text-center mb-6">
             <img
               src={profileData.user.picture || user.picture}
@@ -232,24 +367,77 @@ export function Profile() {
             <p className="text-gray-500 mt-2">{profileData.user.email}</p>
           </div>
           {isOwnProfile && (
-            <div className="flex justify-center space-x-4">
-              <QRScanner onScan={handleQRScan} />
-              <button
-                onClick={handleEdit}
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              >
-                Edit Profile
-              </button>
-              <button
-                onClick={handleDelete}
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              >
-                Delete Account
-              </button>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="flex justify-center space-x-4">
+                {hasCard === false && (
+                  <QRScanner onScan={handleQRScan} />
+                )}
+                <button
+                  onClick={handleEdit}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                >
+                  Edit Profile
+                </button>
+              </div>
+              {hasCard === false && (
+                <p className="text-gray-600 text-sm text-center">
+                  💡 <strong>Tip:</strong> Use the QR Scanner to scan a physical card and create your digital business card!
+                </p>
+              )}
             </div>
           )}
         </div>
       )}
+      
+      {/* Links Section */}
+      {!isEditing && (
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+          {isOwnProfile && showAddLinkForm && (
+            <AddLinkForm 
+              onAdd={handleAddLink} 
+              onCancel={() => setShowAddLinkForm(false)} 
+            />
+          )}
+          
+          {isOwnProfile && !showAddLinkForm && (
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Portfolio Links</h3>
+              <button
+                onClick={() => setShowAddLinkForm(true)}
+                className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-sm hover:bg-green-600 transition-colors duration-200"
+              >
+                Add Link
+              </button>
+            </div>
+          )}
+          
+          {loadingLinks ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+              <span className="ml-2 text-gray-600">Loading links...</span>
+            </div>
+          ) : (
+            <ProfileLinks 
+              links={userLinks || undefined} 
+              onRemove={isOwnProfile ? handleRemoveLink : undefined}
+              editable={isOwnProfile}
+            />
+          )}
+        </div>
+      )}
+      
+      {/* Card Management Section - Only show for own profile */}
+      {!isEditing && isOwnProfile && (
+        <CardManager username={profileData.user.username} userId={profileData.user.user_id} />
+      )}
+
+      {/* Delete Account Modal */}
+      <DeleteAccountModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        isLoading={isLoading}
+      />
     </div>
   );
 } 

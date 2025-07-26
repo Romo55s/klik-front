@@ -26,6 +26,28 @@ export function createProfileService(token: string) {
       await api.delete('/profile/me');
     },
 
+    // Get links for authenticated user
+    async getLinks(): Promise<Record<string, string>> {
+      const response = await api.get('/profile/links');
+      return response.data.links;
+    },
+
+    // Get links for a specific user (public)
+    async getUserLinks(username: string): Promise<{ links: Record<string, string>; user: { username: string; name: string; bio: string; avatar_url: string } }> {
+      const response = await api.get(`/profile/${username}/links`);
+      return response.data;
+    },
+
+    async addLink(linkName: string, linkUrl: string): Promise<Profile> {
+      const response = await api.post('/profile/links', { linkName, linkUrl });
+      return response.data;
+    },
+
+    async removeLink(linkName: string): Promise<Profile> {
+      const response = await api.delete(`/profile/links/${encodeURIComponent(linkName)}`);
+      return response.data;
+    },
+
     async getProfileByUsername(username: string): Promise<{ profile: Profile; cards: any[] }> {
       const response = await api.get(`/profile/${username}`);
       return response.data;

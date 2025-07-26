@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createUserService } from '../services/userService';
 import type { UserWithProfile } from '../services/userService';
@@ -11,6 +11,7 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   getAccessToken: () => Promise<string>;
+  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -26,13 +27,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   } = useAuth0();
 
   const [userData, setUserData] = useState<UserWithProfile | null>(null);
+  const [tokenCache, setTokenCache] = useState<{ token: string; expiresAt: number } | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const handleUserCreation = async () => {
-    if (!user) return;
+  // Cached token getter with automatic refresh
+  const getCachedToken = useCallback(async (): Promise<string> => {
+    const now = Date.now();
+    
+    // Check if we have a valid cached token
+    if (tokenCache && tokenCache.expiresAt > now + 60000) { // 1 minute buffer
+      return tokenCache.token;
+    }
 
+    // Get new token
     try {
-      console.log('Auth0 user data:', user);
-      console.log('Audience api ->', import.meta.env.VITE_AUTH0_API_AUDIENCE);
       const tokenResponse = await getAccessTokenSilently({
         authorizationParams: {
           audience: import.meta.env.VITE_AUTH0_API_AUDIENCE,
@@ -40,8 +48,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         },
         detailedResponse: true
       });
+      
       const token = tokenResponse.access_token;
-      console.log('Got access token:', token);
+      const expiresAt = now + (tokenResponse.expires_in * 1000);
+      
+      // Cache the token
+      setTokenCache({ token, expiresAt });
+      
+      return token;
+    } catch (error) {
+      console.error('Error getting access token:', error);
+      throw error;
+    }
+  }, [getAccessTokenSilently, tokenCache]);
+
+  const handleUserCreation = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      console.log('Auth0 user data:', user);
+      const token = await getCachedToken();
       const userService = createUserService(token);
       
       console.log('Attempting to get current user...');
@@ -62,29 +88,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error('Error in handleUserCreation:', error);
+    } finally {
+      setIsInitialized(true);
     }
-  };
+  }, [user, getCachedToken]);
+
+  const refreshUserData = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const token = await getCachedToken();
+      const userService = createUserService(token);
+      const currentUser = await userService.getCurrentUser();
+      setUserData(currentUser);
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  }, [user, getCachedToken]);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && !isInitialized) {
       handleUserCreation();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isInitialized, handleUserCreation]);
 
-  const value = {
+  const value = useMemo(() => ({
     isAuthenticated,
     isLoading,
     user,
     userData,
     login: loginWithRedirect,
     logout: () => auth0Logout({ logoutParams: { returnTo: window.location.origin } }),
-    getAccessToken: () => getAccessTokenSilently({
-      authorizationParams: {
-        audience: import.meta.env.VITE_AUTH0_API_AUDIENCE,
-        scope: 'openid profile email'
-      }
-    }),
-  };
+    getAccessToken: getCachedToken,
+    refreshUserData,
+  }), [isAuthenticated, isLoading, user, userData, loginWithRedirect, auth0Logout, getCachedToken, refreshUserData]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

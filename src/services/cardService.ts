@@ -16,19 +16,17 @@ export function createCardService(token: string) {
       return response.data;
     },
 
-    async getCards(): Promise<Card[]> {
-      const response = await api.get('/cards');
-      return response.data;
-    },
-
-    async getCard(id: string): Promise<Card> {
-      const response = await api.get(`/cards/${id}`);
-      return response.data;
-    },
-
-    async getCardsByProfile(profileUsername: string): Promise<any> {
-      const response = await api.get(`/cards/profile/${profileUsername}`);
-      return response.data;
+    async getCard(): Promise<Card> {
+      try {
+        const response = await api.get('/cards');
+        return response.data;
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          // User doesn't have a card yet - this is normal
+          throw new Error('NO_CARD_FOUND');
+        }
+        throw error; // Re-throw other errors
+      }
     },
 
     async activateCard(cardId: string): Promise<Card> {
@@ -36,15 +34,11 @@ export function createCardService(token: string) {
       return response.data;
     },
 
-    async deactivateCard(cardId: string): Promise<Card> {
-      const response = await api.post(`/cards/${cardId}/deactivate`);
-      return response.data;
-    },
 
-    async claimCard(profileUserId: string): Promise<Card> {
-      const response = await api.post('/cards/claim', { profileUserId });
-      return response.data;
-    },
+
+
+
+
 
     async updateCard(id: string, data: { name?: string; description?: string }): Promise<Card> {
       const response = await api.put(`/cards/${id}`, data);
