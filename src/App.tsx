@@ -19,11 +19,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route 
               path="/profile/:username" 
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } 
+              element={<Profile />} 
             />
             <Route 
               path="/profile/:username/claim" 

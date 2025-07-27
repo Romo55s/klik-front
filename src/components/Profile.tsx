@@ -8,6 +8,7 @@ import { QRScanner } from './QRScanner';
 import { CardManager } from './CardManager';
 import { AddLinkForm } from './AddLinkForm';
 import { ProfileLinks } from './ProfileLinks';
+import { AnonymousProfile } from './AnonymousProfile';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import type { ProfileFormData } from '../interfaces/user.interface';
 
@@ -40,11 +41,21 @@ export function Profile() {
         if (username) {
           // If username is provided in URL params, fetch that profile
           console.log('🔍 Fetching profile for username:', username);
-          const token = await getAccessToken();
-          const profileService = createProfileService(token);
-          const response = await profileService.getProfileByUsername(username);
-          console.log('✅ Profile data received:', response);
-          setProfileData(response);
+          
+          if (isAuthenticated) {
+            // Authenticated user - use authenticated service
+            const token = await getAccessToken();
+            const profileService = createProfileService(token);
+            const response = await profileService.getProfileByUsername(username);
+            console.log('✅ Profile data received:', response);
+            setProfileData(response);
+          } else {
+            // Anonymous user - use public service
+            const profileService = createProfileService('');
+            const response = await profileService.getPublicProfile(username);
+            console.log('✅ Public profile data received:', response);
+            setProfileData(response);
+          }
         } else if (isAuthenticated && userData?.user?.username) {
           // If no username in URL but user is authenticated, redirect to their profile
           console.log('ℹ️ Redirecting to user profile:', userData.user.username);
@@ -66,6 +77,9 @@ export function Profile() {
     // Only fetch if we have a username or need to redirect
     if (username || (isAuthenticated && userData?.user?.username && !username)) {
       initializeUser();
+    } else if (!isAuthenticated && !username) {
+      // Anonymous user with no username - don't fetch anything
+      setIsLoading(false);
     }
   }, [username, isAuthenticated, userData?.user?.username, getAccessToken, navigate]);
 
@@ -290,6 +304,22 @@ export function Profile() {
     );
   }
 
+  // Show anonymous profile view for non-authenticated users viewing someone's profile
+  if (!isAuthenticated && username && profileData) {
+    return (
+      <AnonymousProfile
+        profile={profileData.profile}
+        links={profileData.profile.links || {}}
+        user={{
+          username: profileData.profile.username,
+          name: profileData.profile.name,
+          bio: profileData.profile.bio,
+          avatar_url: profileData.profile.avatar_url || ''
+        }}
+      />
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       {isEditing ? (
@@ -329,6 +359,7 @@ export function Profile() {
                 placeholder="Tell us about yourself"
               />
             </div>
+
             <div className="flex justify-between items-center">
               <button
                 onClick={handleDelete}

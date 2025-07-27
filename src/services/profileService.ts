@@ -38,6 +38,32 @@ export function createProfileService(token: string) {
       return response.data;
     },
 
+    // Get public profile data (no authentication required)
+    async getPublicProfile(username: string): Promise<{ profile: Profile; cards: any[] }> {
+      const publicApi = axios.create({
+        baseURL: 'http://localhost:3000/api',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      // Use the public links endpoint which doesn't require authentication
+      const response = await publicApi.get(`/profile/${username}/links`);
+      return {
+        profile: {
+          profile_id: '',
+          user_id: '',
+          name: response.data.user.name,
+          username: response.data.user.username,
+          bio: response.data.user.bio,
+          avatar_url: response.data.user.avatar_url,
+          links: response.data.links,
+          created_at: '',
+          updated_at: ''
+        },
+        cards: []
+      };
+    },
+
     async addLink(linkName: string, linkUrl: string): Promise<Profile> {
       const response = await api.post('/profile/links', { linkName, linkUrl });
       return response.data;
