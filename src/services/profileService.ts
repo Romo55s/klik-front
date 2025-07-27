@@ -1,9 +1,10 @@
 import axios from 'axios';
 import type { Profile, ProfileFormData } from '../interfaces/user.interface';
+import { API_BASE_URL } from '../utils/config';
 
 export function createProfileService(token: string) {
   const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: API_BASE_URL,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -41,7 +42,7 @@ export function createProfileService(token: string) {
     // Get public profile data (no authentication required)
     async getPublicProfile(username: string): Promise<{ profile: Profile; cards: any[] }> {
       const publicApi = axios.create({
-        baseURL: 'http://localhost:3000/api',
+        baseURL: API_BASE_URL,
         headers: {
           'Content-Type': 'application/json'
         }

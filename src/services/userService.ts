@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { User, Profile, ProfileFormData } from '../interfaces/user.interface';
 import type { Card } from '../interfaces/card.interface';
 import type { ScanLog } from '../interfaces/scan.interface';
+import { API_BASE_URL } from '../utils/config';
 
 export interface UserWithProfile {
   user: User;
@@ -10,7 +11,7 @@ export interface UserWithProfile {
 
 export function createUserService(token: string) {
   const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: API_BASE_URL,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

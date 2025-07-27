@@ -1,10 +1,11 @@
 import axios from 'axios';
 import type { User, UserWithProfile, Profile } from '../interfaces/user.interface';
 import type { ScanLog } from '../interfaces/scan.interface';
+import { API_BASE_URL } from '../utils/config';
 
 export function createAdminService(token: string) {
   const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: API_BASE_URL,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

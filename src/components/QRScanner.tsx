@@ -2,12 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { QrcodeOutlined } from '@ant-design/icons';
 import { verifyQrCode } from '../services/qrService';
+import { useRateLimit } from '../hooks/useRateLimit';
+import { useAuth } from '../contexts/AuthContext';
 
 interface QRScannerProps {
   onScan: (username: string) => void;
 }
 
 export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
+  const { userData } = useAuth();
+  const { remaining, isLimited, getTimeRemaining, checkLimit } = useRateLimit('QR_SCAN', userData?.user?.user_id);
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,6 +33,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
 
       newScanner.render(async (decodedText) => {
         try {
+          // Check rate limit before processing
+          if (!checkLimit()) {
+            const timeRemaining = getTimeRemaining();
+            setMessage(`Rate limit exceeded. Try again in ${timeRemaining} seconds.`);
+            setMessageType('error');
+            return;
+          }
+
           setLoading(true);
           setMessage(null);
           setMessageType(null);
@@ -114,10 +127,17 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
     <>
       <button
         onClick={handleOpenScanner}
-        className="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg shadow-sm transition-colors duration-200"
+        disabled={isLimited}
+        className={`inline-flex items-center px-4 py-2 font-semibold rounded-lg shadow-sm transition-colors duration-200 ${
+          isLimited 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : 'bg-blue-500 hover:bg-blue-600 text-white'
+        }`}
+        title={isLimited ? `Rate limited. Try again in ${getTimeRemaining()} seconds.` : 'Scan QR Code'}
       >
         <QrcodeOutlined className="mr-2" />
         Scan QR Code
+        {isLimited && <span className="ml-2 text-xs">({remaining})</span>}
       </button>
 
       {isModalOpen && (

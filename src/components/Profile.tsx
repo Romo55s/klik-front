@@ -10,12 +10,18 @@ import { AddLinkForm } from './AddLinkForm';
 import { ProfileLinks } from './ProfileLinks';
 import { AnonymousProfile } from './AnonymousProfile';
 import { DeleteAccountModal } from './DeleteAccountModal';
+import { useRateLimit } from '../hooks/useRateLimit';
 import type { ProfileFormData } from '../interfaces/user.interface';
 
 export function Profile() {
   const { username } = useParams<{ username: string }>();
   const { isAuthenticated, user, userData, getAccessToken, logout } = useAuth();
   const navigate = useNavigate();
+  
+  // Rate limiting hooks
+  const { checkLimit: checkProfileUpdateLimit, getTimeRemaining: getProfileUpdateTimeRemaining } = useRateLimit('PROFILE_UPDATES', userData?.user?.user_id);
+  const { checkLimit: checkLinkLimit, getTimeRemaining: getLinkTimeRemaining } = useRateLimit('LINK_MANAGEMENT', userData?.user?.user_id);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -111,6 +117,13 @@ export function Profile() {
 
   const handleSave = async () => {
     try {
+      // Check rate limit before updating profile
+      if (!checkProfileUpdateLimit()) {
+        const timeRemaining = getProfileUpdateTimeRemaining();
+        setError(`Rate limit exceeded. Try again in ${timeRemaining} seconds.`);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       const token = await getAccessToken();
@@ -223,6 +236,12 @@ export function Profile() {
 
   const handleAddLink = async (linkName: string, linkUrl: string) => {
     try {
+      // Check rate limit before adding link
+      if (!checkLinkLimit()) {
+        const timeRemaining = getLinkTimeRemaining();
+        throw new Error(`Rate limit exceeded. Try again in ${timeRemaining} seconds.`);
+      }
+
       const token = await getAccessToken();
       const profileService = createProfileService(token);
       await profileService.addLink(linkName, linkUrl);
@@ -246,6 +265,17 @@ export function Profile() {
 
   const handleRemoveLink = async (linkName: string) => {
     try {
+      // Check rate limit before removing link
+      if (!checkLinkLimit()) {
+        const timeRemaining = getLinkTimeRemaining();
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        toast.textContent = `Rate limit exceeded. Try again in ${timeRemaining} seconds.`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+        return;
+      }
+
       const token = await getAccessToken();
       const profileService = createProfileService(token);
       await profileService.removeLink(linkName);

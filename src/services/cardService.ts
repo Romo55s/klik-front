@@ -1,9 +1,10 @@
 import axios from 'axios';
 import type { Card, CreateCardDto, UpdateCardDto } from '../interfaces/card.interface';
+import { API_BASE_URL } from '../utils/config';
 
 export function createCardService(token: string) {
   const api = axios.create({
-    baseURL: 'http://localhost:3000/api',
+    baseURL: API_BASE_URL,
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
