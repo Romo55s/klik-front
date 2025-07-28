@@ -35,11 +35,14 @@ export const ProfileManagement: React.FC = () => {
   };
 
   // Filter profiles based on search term
-  const filteredProfiles = profiles.filter(profile => 
-    profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.bio?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProfiles = profiles.filter(profile => {
+    if (!profile) return false;
+    
+    return (
+      (profile.name && profile.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (profile.bio && profile.bio.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  });
 
   if (loading) {
     return (
@@ -89,52 +92,88 @@ export const ProfileManagement: React.FC = () => {
         />
       </div>
 
-      {/* Profiles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProfiles.map((profile) => (
-          <div key={profile.profile_id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center space-x-4 mb-4">
-              <img
-                className="h-12 w-12 rounded-full"
-                src={profile.avatar_url || '/default-avatar.png'}
-                alt=""
-              />
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{profile.name}</h3>
-                <p className="text-sm text-gray-500">@{profile.username}</p>
-              </div>
-            </div>
-            
-            {profile.bio && (
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">{profile.bio}</p>
-            )}
-            
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Links:</span>
-                <span className="font-medium">
-                  {Object.keys(profile.links || {}).length}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Created:</span>
-                <span className="font-medium">
-                  {new Date(profile.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => {
-                setSelectedProfile(profile);
-                setShowProfileModal(true);
-              }}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              View Details
-            </button>
-          </div>
-        ))}
+            {/* Profiles Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Profiles ({filteredProfiles.length})
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Profile
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Bio
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Links
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Last Updated
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredProfiles.map((profile) => (
+                <tr key={profile.profile_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <img
+                          className="h-10 w-10 rounded-full"
+                          src={profile.avatar_url || '/default-avatar.png'}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-avatar.png';
+                          }}
+                        />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {profile.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ID: {profile.profile_id.slice(0, 8)}...
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900 max-w-xs truncate">
+                      {profile.bio || 'No bio'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {Array.isArray(profile.links) ? profile.links.length : Object.keys(profile.links || {}).length} links
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(profile.updated_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        setSelectedProfile(profile);
+                        setShowProfileModal(true);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {filteredProfiles.length === 0 && (
@@ -165,10 +204,13 @@ export const ProfileManagement: React.FC = () => {
                   className="h-16 w-16 rounded-full"
                   src={selectedProfile.avatar_url || '/default-avatar.png'}
                   alt=""
+                  onError={(e) => {
+                    e.currentTarget.src = '/default-avatar.png';
+                  }}
                 />
                 <div>
                   <h4 className="text-xl font-semibold text-gray-900">{selectedProfile.name}</h4>
-                  <p className="text-gray-500">@{selectedProfile.username}</p>
+                  <p className="text-gray-500">Profile ID: {selectedProfile.profile_id}</p>
                 </div>
               </div>
               
@@ -207,12 +249,10 @@ export const ProfileManagement: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">Profile Links</label>
                   <div className="mt-2 space-y-2">
                     {Array.isArray(selectedProfile.links) ? (
-                      // Handle array format
+                      // Handle array format with key/value structure
                       selectedProfile.links.map((link: any, index: number) => {
-                        const linkName = typeof link === 'object' && link.name ? link.name : `Link ${index + 1}`;
-                        const linkUrl = typeof link === 'object' && link.url ? link.url : 
-                                       typeof link === 'object' && (link as any).value ? (link as any).value :
-                                       typeof link === 'string' ? link : '#';
+                        const linkName = link.key || link.name || `Link ${index + 1}`;
+                        const linkUrl = link.value || link.url || '#';
                         
                         return (
                           <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">

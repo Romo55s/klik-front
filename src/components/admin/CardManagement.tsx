@@ -11,6 +11,8 @@ export const CardManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [showCardModal, setShowCardModal] = useState(false);
 
   useEffect(() => {
     fetchCards();
@@ -199,7 +201,13 @@ export const CardManagement: React.FC = () => {
               >
                 {card.status === 'active' ? 'Deactivate' : 'Activate'}
               </button>
-              <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+              <button 
+                onClick={() => {
+                  setSelectedCard(card);
+                  setShowCardModal(true);
+                }}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
                 View Details
               </button>
             </div>
@@ -235,6 +243,99 @@ export const CardManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Card Detail Modal */}
+      {showCardModal && selectedCard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Card Details</h3>
+              <button
+                onClick={() => setShowCardModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xl font-semibold text-gray-900">{selectedCard.name}</h4>
+                <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                  selectedCard.status === 'active'
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {selectedCard.status === 'active' ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              
+              {selectedCard.description && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <p className="text-sm text-gray-900 mt-1">{selectedCard.description}</p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Card ID</label>
+                  <p className="text-sm text-gray-900 font-mono">{selectedCard.card_id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">User ID</label>
+                  <p className="text-sm text-gray-900 font-mono">{selectedCard.user_id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Created</label>
+                  <p className="text-sm text-gray-900">
+                    {new Date(selectedCard.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Updated</label>
+                  <p className="text-sm text-gray-900">
+                    {new Date(selectedCard.updated_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              
+              {selectedCard.is_verified !== undefined && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Verification Status</label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCard.is_verified ? 'Verified' : 'Not Verified'}
+                  </p>
+                </div>
+              )}
+              
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={() => {
+                    handleToggleCardStatus(selectedCard.card_id, selectedCard.status === 'active');
+                    setShowCardModal(false);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    selectedCard.status === 'active'
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  {selectedCard.status === 'active' ? 'Deactivate Card' : 'Activate Card'}
+                </button>
+                <button
+                  onClick={() => setShowCardModal(false)}
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }; 

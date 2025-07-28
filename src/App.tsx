@@ -50,7 +50,47 @@ function App() {
               path="/admin" 
               element={
                 <ProtectedRoute>
-                  <AdminPanel />
+                  <Navigate to="/admin/dashboard" replace />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel defaultTab="dashboard" />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/user-management" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel defaultTab="users" />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/profile-management" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel defaultTab="profiles" />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/card-management" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel defaultTab="cards" />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/system-monitoring" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel defaultTab="monitoring" />
                 </ProtectedRoute>
               } 
             />

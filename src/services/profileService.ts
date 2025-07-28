@@ -29,8 +29,16 @@ export function createProfileService(token: string) {
 
     // Get links for authenticated user
     async getLinks(): Promise<Record<string, string>> {
-      const response = await api.get('/profile/links');
-      return response.data.links;
+      try {
+        const response = await api.get('/profile/links');
+        return response.data.links;
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          // User doesn't have a profile yet - this is normal for new users
+          throw new Error('NO_PROFILE_FOUND');
+        }
+        throw error; // Re-throw other errors
+      }
     },
 
     // Get links for a specific user (public)

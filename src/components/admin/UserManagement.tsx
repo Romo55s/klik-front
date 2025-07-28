@@ -25,6 +25,18 @@ export const UserManagement: React.FC = () => {
       const token = await getAccessToken();
       const userService = createUserService(token);
       const usersData = await userService.getAllUsers();
+      // Fetch all profiles and attach the avatar_url to the corresponding user in usersData
+      const profilesData = await userService.getAllProfiles();
+      if (Array.isArray(usersData) && Array.isArray(profilesData)) {
+        usersData.forEach((userObj: any) => {
+          const profile = profilesData.find((p: any) => p.user_id === userObj.user.user_id);
+          if (profile) {
+            userObj.profile = profile;
+          } else {
+            userObj.profile = {};
+          }
+        });
+      }
       // Ensure usersData is an array
       const usersArray = Array.isArray(usersData) ? usersData : [];
       setUsers(usersArray);
@@ -219,8 +231,15 @@ export const UserManagement: React.FC = () => {
                       <div className="flex-shrink-0 h-10 w-10">
                         <img
                           className="h-10 w-10 rounded-full"
-                          src={user.user.picture || user.user.avatar_url || '/default-avatar.png'}
+                          src={(() => {
+                            const imageUrl = user.user.picture || user.profile.avatar_url || '/default-avatar.png';
+                            return imageUrl;
+                          })()}
                           alt=""
+                          onError={(e) => {
+                            console.log('Image failed to load for user:', user.user.name, 'falling back to default');
+                            e.currentTarget.src = '/default-avatar.png';
+                          }}
                         />
                       </div>
                       <div className="ml-4">
@@ -308,8 +327,11 @@ export const UserManagement: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <img
                   className="h-16 w-16 rounded-full"
-                  src={selectedUser.user.picture || selectedUser.user.avatar_url || '/default-avatar.png'}
+                  src={selectedUser.user.picture || selectedUser.profile?.avatar_url || '/default-avatar.png'}
                   alt=""
+                  onError={(e) => {
+                    e.currentTarget.src = '/default-avatar.png';
+                  }}
                 />
                 <div>
                   <h4 className="text-xl font-semibold text-gray-900">{selectedUser.user.name}</h4>
@@ -355,20 +377,25 @@ export const UserManagement: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700">Profile Links</label>
                   <div className="mt-2 space-y-2">
                     {selectedUser.profile.links && Array.isArray(selectedUser.profile.links) ? (
-                      // Handle array format
-                      selectedUser.profile.links.map((link: any, index: number) => (
-                        <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                          <span className="text-sm font-medium">{link.name || `Link ${index + 1}`}</span>
-                          <a
-                            href={link.url || link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            {link.url || link}
-                          </a>
-                        </div>
-                      ))
+                      // Handle array format with key/value structure
+                      selectedUser.profile.links.map((link: any, index: number) => {
+                        const linkName = link.key || link.name || `Link ${index + 1}`;
+                        const linkUrl = link.value || link.url || '#';
+                        
+                        return (
+                          <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <span className="text-sm font-medium">{linkName}</span>
+                            <a
+                              href={linkUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              {linkUrl}
+                            </a>
+                          </div>
+                        );
+                      })
                     ) : selectedUser.profile.links && typeof selectedUser.profile.links === 'object' ? (
                       // Handle object format
                       Object.entries(selectedUser.profile.links).map(([name, url]) => (

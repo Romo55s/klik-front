@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminDashboard } from './admin/AdminDashboard';
 import { UserManagement } from './admin/UserManagement';
 import { ProfileManagement } from './admin/ProfileManagement';
@@ -8,9 +9,25 @@ import { SystemMonitoring } from './admin/SystemMonitoring';
 
 type AdminTab = 'dashboard' | 'users' | 'profiles' | 'cards' | 'monitoring';
 
-export const AdminPanel: React.FC = () => {
+interface AdminPanelProps {
+  defaultTab?: AdminTab;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ defaultTab = 'dashboard' }) => {
   const { userData } = useAuth();
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<AdminTab>(defaultTab);
+
+  // Update active tab when location changes
+  React.useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/admin/dashboard')) setActiveTab('dashboard');
+    else if (path.includes('/admin/user-management')) setActiveTab('users');
+    else if (path.includes('/admin/profile-management')) setActiveTab('profiles');
+    else if (path.includes('/admin/card-management')) setActiveTab('cards');
+    else if (path.includes('/admin/system-monitoring')) setActiveTab('monitoring');
+  }, [location.pathname]);
 
   // Check if user is admin
   if (userData?.user?.role !== 'admin') {
@@ -77,7 +94,17 @@ export const AdminPanel: React.FC = () => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  const routes = {
+                    dashboard: '/admin/dashboard',
+                    users: '/admin/user-management',
+                    profiles: '/admin/profile-management',
+                    cards: '/admin/card-management',
+                    monitoring: '/admin/system-monitoring'
+                  };
+                  navigate(routes[tab.id]);
+                }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'

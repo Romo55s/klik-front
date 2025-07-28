@@ -10,7 +10,7 @@ export function Home() {
   // Auto-redirect admin users to admin panel
   useEffect(() => {
     if (isAuthenticated && userData?.user?.role === 'admin') {
-      navigate('/admin');
+      navigate('/admin/dashboard');
     }
   }, [isAuthenticated, userData, navigate]);
 

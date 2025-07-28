@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createUserService } from '../../services/userService';
 import { createProfileService } from '../../services/profileService';
 import { createScanService } from '../../services/scanService';
@@ -16,6 +17,7 @@ interface DashboardStats {
 
 export const AdminDashboard: React.FC = () => {
   const { getAccessToken } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -191,14 +193,26 @@ export const AdminDashboard: React.FC = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-            View All Users
+          <button 
+            onClick={() => navigate('/admin/user-management')}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2"
+          >
+            <span>👥</span>
+            <span>View All Users</span>
           </button>
-          <button className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
-            Manage Profiles
+          <button 
+            onClick={() => navigate('/admin/profile-management')}
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2"
+          >
+            <span>👤</span>
+            <span>Manage Profiles</span>
           </button>
-          <button className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors">
-            System Monitoring
+          <button 
+            onClick={() => navigate('/admin/system-monitoring')}
+            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2"
+          >
+            <span>📊</span>
+            <span>System Monitoring</span>
           </button>
         </div>
       </div>
