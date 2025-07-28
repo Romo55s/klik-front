@@ -55,22 +55,30 @@ export function createProfileService(token: string) {
           'Content-Type': 'application/json'
         }
       });
-      // Use the public links endpoint which doesn't require authentication
-      const response = await publicApi.get(`/profile/${username}/links`);
-      return {
-        profile: {
-          profile_id: '',
-          user_id: '',
-          name: response.data.user.name,
-          username: response.data.user.username,
-          bio: response.data.user.bio,
-          avatar_url: response.data.user.avatar_url,
-          links: response.data.links,
-          created_at: '',
-          updated_at: ''
-        },
-        cards: []
-      };
+      
+      try {
+        // Try to get the full profile data first
+        const response = await publicApi.get(`/profile/${username}`);
+        return response.data;
+      } catch (error) {
+        // Fallback to the links endpoint if the full profile endpoint doesn't work
+        const response = await publicApi.get(`/profile/${username}/links`);
+        return {
+          profile: {
+            profile_id: '',
+            user_id: '',
+            name: response.data.user.name,
+            username: response.data.user.username,
+            bio: response.data.user.bio,
+            avatar_url: response.data.user.avatar_url,
+            background_image: response.data.user.background_image || null,
+            links: response.data.links,
+            created_at: '',
+            updated_at: ''
+          },
+          cards: []
+        };
+      }
     },
 
     async addLink(linkName: string, linkUrl: string): Promise<Profile> {
