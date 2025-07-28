@@ -7,6 +7,7 @@ import { Home } from './components/Home';
 import { Profile } from './components/Profile';
 import { CardClaim } from './components/CardClaim';
 import { AdminPanel } from './components/AdminPanel';
+import { getUsernameFromUserData } from './utils/userUtils';
 import './App.css';
 
 function App() {
@@ -38,7 +39,7 @@ function App() {
                     userData.user.role === 'admin' ? (
                       <Navigate to="/admin" replace />
                     ) : (
-                      <Navigate to={`/profile/${userData.user.username}`} replace />
+                      <Navigate to={`/profile/${getUsernameFromUserData(userData)}`} replace />
                     )
                   ) : (
                     <Navigate to="/" replace />

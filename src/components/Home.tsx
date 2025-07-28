@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect } from 'react';
+import { getUsernameFromUserData } from '../utils/userUtils';
 
 export function Home() {
   const { isAuthenticated, userData } = useAuth();
@@ -17,8 +18,9 @@ export function Home() {
   const handleGoToProfile = () => {
     setError(null);
     try {
-      if (userData && userData.user && userData.user.username) {
-        navigate(`/profile/${userData.user.username}`);
+      const username = getUsernameFromUserData(userData);
+      if (username) {
+        navigate(`/profile/${username}`);
       } else {
         setError('User data or username is missing.');
       }

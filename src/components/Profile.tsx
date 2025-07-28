@@ -4,14 +4,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { createProfileService } from '../services/profileService';
 import { createUserService } from '../services/userService';
 import { createCardService } from '../services/cardService';
+import { createImageService } from '../services/imageService';
 import { QRScanner } from './QRScanner';
 import { CardManager } from './CardManager';
 import { AddLinkForm } from './AddLinkForm';
 import { ProfileLinks } from './ProfileLinks';
 import { AnonymousProfile } from './AnonymousProfile';
 import { DeleteAccountModal } from './DeleteAccountModal';
+import { ProfileBackgroundManager } from './ProfileBackgroundManager';
 import { useRateLimit } from '../hooks/useRateLimit';
 import type { ProfileFormData } from '../interfaces/user.interface';
+import type { ProfileWithImages } from '../services/imageService';
+import { getUsernameFromUserData } from '../utils/userUtils';
 
 export function Profile() {
   const { username } = useParams<{ username: string }>();
@@ -37,6 +41,20 @@ export function Profile() {
   const [hasCard, setHasCard] = useState<boolean | null>(null);
   const [userLinks, setUserLinks] = useState<Record<string, string> | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
+  const [profileWithImages, setProfileWithImages] = useState<ProfileWithImages | null>(null);
+
+  // Load profile with images
+  const loadProfileWithImages = async () => {
+    try {
+      const token = await getAccessToken();
+      const imageService = createImageService(token);
+      const profileData = await imageService.getProfileWithImages();
+      setProfileWithImages(profileData);
+    } catch (error) {
+      console.error('Failed to load profile with images:', error);
+      // Don't set error state as this is optional
+    }
+  };
 
   useEffect(() => {
     const initializeUser = async () => {
@@ -59,15 +77,16 @@ export function Profile() {
             // Anonymous user - use public service
             const profileService = createProfileService('');
             const response = await profileService.getPublicProfile(username);
-            console.log('✅ Public profile data received:', response);
+    
             setProfileData(response);
           }
-        } else if (isAuthenticated && userData?.user?.username) {
+        } else if (isAuthenticated && getUsernameFromUserData(userData)) {
           // If no username in URL but user is authenticated, redirect to their profile
-          console.log('ℹ️ Redirecting to user profile:', userData.user.username);
-          navigate(`/profile/${userData.user.username}`);
+          const username = getUsernameFromUserData(userData);
+          console.log('ℹ️ Redirecting to user profile:', username);
+          navigate(`/profile/${username}`);
           return;
-        } else if (isAuthenticated && !userData?.user?.username) {
+        } else if (isAuthenticated && !getUsernameFromUserData(userData)) {
           // Authenticated user but no username - might be a new user
           console.log('ℹ️ Authenticated user without username - showing welcome message');
           setProfileData(null);
@@ -76,6 +95,8 @@ export function Profile() {
           console.log('ℹ️ No profile request needed - not authenticated and no username');
           setProfileData(null);
         }
+
+
       } catch (error: any) {
         console.error('❌ Error fetching profile:', error);
         if (error.response?.status === 404) {
@@ -99,7 +120,14 @@ export function Profile() {
     }
   }, [username, isAuthenticated, userData?.user?.username, getAccessToken, navigate]);
 
-  const isOwnProfile = userData?.user?.username === username;
+  // Load profile with images after profile data is loaded
+  useEffect(() => {
+    if (isAuthenticated && profileData?.user) {
+      loadProfileWithImages();
+    }
+  }, [isAuthenticated, profileData?.user]);
+
+  const isOwnProfile = getUsernameFromUserData(userData) === username;
 
   // Check if user has a card and fetch links
   useEffect(() => {
@@ -332,6 +360,13 @@ export function Profile() {
     }
   };
 
+  // Profile Update Handler
+  const handleProfileUpdate = (updatedProfile: any) => {
+    setProfileWithImages(prev => prev ? { ...prev, profile: updatedProfile } : null);
+    // TODO: Update profile in database
+    console.log('Profile updated:', updatedProfile);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -412,12 +447,14 @@ export function Profile() {
       <AnonymousProfile
         profile={profileData.profile}
         links={profileData.profile.links || {}}
-        user={{
-          username: profileData.profile.username || '',
-          name: profileData.profile.name || '',
-          bio: profileData.profile.bio || '',
-          avatar_url: profileData.profile.avatar_url || ''
-        }}
+                  user={{
+            username: username || '',
+            name: profileData.profile.name || '',
+            bio: profileData.profile.bio || '',
+            avatar_url: profileData.profile.avatar_url || '',
+            email: profileData.profile.email || ''
+          }}
+        backgroundUrl={profileData.profile.background_image}
       />
     );
   }
@@ -536,18 +573,30 @@ export function Profile() {
             </div>
           </div>
         </div>
-      ) : (
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-          <div className="text-center mb-6">
-            <img
-              src={profileData.user?.picture || user?.picture || '/default-avatar.png'}
-              alt="Profile"
-              className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
-            />
-            <h2 className="text-2xl font-bold">{profileData.user?.name || 'Your Name'}</h2>
-            <p className="text-gray-500">@{profileData.user?.username || 'username'}</p>
-            <p className="text-gray-600">{profileData.user?.bio || 'No bio yet'}</p>
-            <p className="text-gray-500 mt-2">{profileData.user?.email || 'No email'}</p>
+              ) : (
+        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+          {/* Background Image */}
+          {(profileWithImages?.profile?.background_image || profileWithImages?.images?.background || profileData?.profile?.background_image) && (
+            <div 
+              className="h-48 bg-cover bg-center bg-no-repeat relative"
+              style={{ backgroundImage: `url(${profileWithImages?.profile?.background_image || profileWithImages?.images?.background || profileData?.profile?.background_image})` }}
+            >
+              <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+            </div>
+          )}
+          
+          <div className={`text-center ${(profileWithImages?.profile?.background_image || profileWithImages?.images?.background || profileData?.profile?.background_image) ? 'p-6 -mt-16 relative z-10' : 'p-6'}`}>
+            <div className={`${(profileWithImages?.profile?.background_image || profileWithImages?.images?.background || profileData?.profile?.background_image) ? 'bg-white rounded-lg shadow-lg p-4' : ''}`}>
+              <img
+                src={profileData.user?.picture || user?.picture || '/default-avatar.png'}
+                alt="Profile"
+                className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-white shadow-lg"
+              />
+              <h2 className="text-2xl font-bold">{profileData.user?.name || 'Your Name'}</h2>
+              <p className="text-gray-500">@{profileData.user?.username || 'username'}</p>
+              <p className="text-gray-600">{profileData.user?.bio || 'No bio yet'}</p>
+              <p className="text-gray-500 mt-2">{profileData.user?.email || 'No email'}</p>
+            </div>
           </div>
           {isOwnProfile && (
             <div className="flex flex-col items-center space-y-4">
@@ -639,6 +688,14 @@ export function Profile() {
         </div>
       )}
       
+      {/* Background Management Section - Only show for own profile */}
+      {!isEditing && isOwnProfile && profileData.user && (profileWithImages || profileData.profile) && (
+        <ProfileBackgroundManager
+          profile={profileWithImages?.profile || profileData.profile}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
+      
       {/* Card Management Section - Only show for own profile */}
       {!isEditing && isOwnProfile && profileData.user && (
         <CardManager username={profileData.user.username} userId={profileData.user.user_id} />
@@ -653,4 +710,4 @@ export function Profile() {
       />
     </div>
   );
-} 
+}
