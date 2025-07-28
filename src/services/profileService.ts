@@ -82,12 +82,12 @@ export function createProfileService(token: string) {
 
     // Admin profile methods
     async getAllProfiles(): Promise<Profile[]> {
-      const response = await api.get('/profile');
-      return response.data;
+      const response = await api.get('/admin/profiles');
+      return response.data.data || response.data; // Handle both {data: [...]} and [...] formats
     },
 
     async getProfileById(id: string): Promise<Profile> {
-      const response = await api.get(`/profile/${id}`);
+      const response = await api.get(`/admin/profiles/${id}`);
       return response.data;
     }
   };

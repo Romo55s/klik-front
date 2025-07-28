@@ -24,7 +24,7 @@ export interface User {
   avatar_url: string | null;
   picture: string | null;
   profile?: Profile;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'admin' | 'suspended';
   created_at: string;
   updated_at: string;
 }

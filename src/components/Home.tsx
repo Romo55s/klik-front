@@ -1,11 +1,18 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function Home() {
   const { isAuthenticated, userData } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-redirect admin users to admin panel
+  useEffect(() => {
+    if (isAuthenticated && userData?.user?.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [isAuthenticated, userData, navigate]);
 
   const handleGoToProfile = () => {
     setError(null);

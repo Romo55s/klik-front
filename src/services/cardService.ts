@@ -35,12 +35,6 @@ export function createCardService(token: string) {
       return response.data;
     },
 
-
-
-
-
-
-
     async updateCard(id: string, data: { name?: string; description?: string }): Promise<Card> {
       const response = await api.put(`/cards/${id}`, data);
       return response.data;
@@ -48,6 +42,13 @@ export function createCardService(token: string) {
 
     async deleteCard(id: string): Promise<void> {
       await api.delete(`/cards/${id}`);
+    },
+
+    // Admin methods
+    async getAllCards(): Promise<Card[]> {
+      const response = await api.get('/admin/cards');
+      // Handle different response structures: {cards: [...]}, {data: [...]}, or [...]
+      return response.data.cards || response.data.data || response.data;
     }
   };
 } 

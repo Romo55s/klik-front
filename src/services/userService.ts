@@ -46,37 +46,37 @@ export function createUserService(token: string) {
 
     // Admin methods
     async getAllUsers(): Promise<UserWithProfile[]> {
-      const response = await api.get('/users');
-      return response.data;
+      const response = await api.get('/admin/users');
+      return response.data.data || response.data; // Handle both {data: [...]} and [...] formats
     },
 
     async getUserById(id: string): Promise<User> {
-      const response = await api.get(`/users/${id}`);
+      const response = await api.get(`/admin/users/${id}`);
       return response.data;
     },
 
     async updateUserRole(id: string, role: 'user' | 'admin'): Promise<User> {
-      const response = await api.put(`/users/${id}/role`, { role });
+      const response = await api.put(`/admin/users/${id}/role`, { role });
       return response.data;
     },
 
     async deleteUser(id: string): Promise<void> {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/admin/users/${id}`);
     },
 
     async getAllProfiles(): Promise<Profile[]> {
-      const response = await api.get('/profiles');
-      return response.data;
+      const response = await api.get('/admin/profiles');
+      return response.data.data || response.data; // Handle both {data: [...]} and [...] formats
     },
 
     async getProfileById(id: string): Promise<Profile> {
-      const response = await api.get(`/profiles/${id}`);
+      const response = await api.get(`/admin/profiles/${id}`);
       return response.data;
     },
 
     async getAllScanLogs(): Promise<ScanLog[]> {
-      const response = await api.get('/scan-logs');
-      return response.data;
+      const response = await api.get('/admin/scans');
+      return response.data.data || response.data; // Handle both {data: [...]} and [...] formats
     }
   };
 } 

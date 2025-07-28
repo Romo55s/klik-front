@@ -6,6 +6,7 @@ import { Navigation } from './components/Navigation';
 import { Home } from './components/Home';
 import { Profile } from './components/Profile';
 import { CardClaim } from './components/CardClaim';
+import { AdminPanel } from './components/AdminPanel';
 import './App.css';
 
 function App() {
@@ -34,10 +35,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   {userData ? (
-                    <Navigate to={`/profile/${userData.user.username}`} replace />
+                    userData.user.role === 'admin' ? (
+                      <Navigate to="/admin" replace />
+                    ) : (
+                      <Navigate to={`/profile/${userData.user.username}`} replace />
+                    )
                   ) : (
                     <Navigate to="/" replace />
                   )}
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
                 </ProtectedRoute>
               } 
             />
