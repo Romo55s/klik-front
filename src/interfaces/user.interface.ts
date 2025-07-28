@@ -5,6 +5,7 @@ export interface Profile {
   username: string;
   bio: string;
   avatar_url: string | null;
+  background_image?: string | null;
   links?: Record<string, string>;
   created_at: string;
   updated_at: string;

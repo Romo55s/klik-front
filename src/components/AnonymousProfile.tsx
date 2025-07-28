@@ -9,25 +9,39 @@ interface AnonymousProfileProps {
     name: string;
     bio: string;
     avatar_url: string;
+    email?: string;
   };
+  backgroundUrl?: string;
 }
 
-export const AnonymousProfile: React.FC<AnonymousProfileProps> = ({ profile, links, user }) => {
+export const AnonymousProfile: React.FC<AnonymousProfileProps> = ({ profile, links, user, backgroundUrl }) => {
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Profile Header */}
-      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-        <div className="text-center mb-6">
-          <img
-            src={user.avatar_url || '/default-avatar.png'}
-            alt="Profile"
-            className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-gray-100"
-          />
-          <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-          <p className="text-gray-500 text-lg">@{user.username}</p>
-          {user.bio && (
-            <p className="text-gray-600 mt-2 max-w-md mx-auto">{user.bio}</p>
-          )}
+      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+        {/* Background Image */}
+        {(backgroundUrl || profile.background_image) && (
+          <div 
+            className="h-48 bg-cover bg-center bg-no-repeat relative"
+            style={{ backgroundImage: `url(${backgroundUrl || profile.background_image})` }}
+          >
+            <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+          </div>
+        )}
+        
+        <div className={`text-center ${(backgroundUrl || profile.background_image) ? 'p-6 -mt-16 relative z-10' : 'p-6'}`}>
+          <div className={`${(backgroundUrl || profile.background_image) ? 'bg-white rounded-lg shadow-lg p-4' : ''}`}>
+            <img
+              src={user.avatar_url || '/default-avatar.png'}
+              alt="Profile"
+              className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-white shadow-lg"
+            />
+            <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
+            <h2 className="text-lg text-gray-500">@{user.name}</h2>
+            {user.bio && (
+              <p className="text-gray-600 mt-2 max-w-md mx-auto">{user.bio}</p>
+            )}
+          </div>
         </div>
       </div>
 
