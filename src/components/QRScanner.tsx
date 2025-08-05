@@ -51,23 +51,16 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
             setMessageType('success');
             // Extract username from the QR data
             let username = '';
-            console.log('🔍 QR Code Debug Info:');
-            console.log('  - Decoded text:', decodedText);
-            console.log('  - Backend response:', data);
             
             if (data.username) {
               // If the backend returns the username directly
               username = data.username;
-              console.log('  - Using username from backend:', username);
             } else {
               // Extract username from the URL if backend doesn't return it
               try {
                 const url = new URL(decodedText);
                 const pathParts = url.pathname.split('/').filter(part => part.length > 0);
                 username = pathParts[pathParts.length - 1]; // Get the last part of the path
-                console.log('  - Extracted username from URL:', username);
-                console.log('  - URL pathname:', url.pathname);
-                console.log('  - Path parts:', pathParts);
               } catch (error) {
                 console.error('Error parsing URL:', error);
                 setMessage('Invalid QR code format.');
@@ -75,8 +68,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
                 return;
               }
             }
-            
-            console.log('  - Final username being passed:', username);
             onScan(username); // Pass only the username
             setTimeout(() => {
               setIsModalOpen(false);

@@ -237,7 +237,6 @@ export const UserManagement: React.FC = () => {
                           })()}
                           alt=""
                           onError={(e) => {
-                            console.log('Image failed to load for user:', user.user.name, 'falling back to default');
                             e.currentTarget.src = '/default-avatar.png';
                           }}
                         />

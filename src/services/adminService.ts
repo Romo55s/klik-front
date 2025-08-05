@@ -44,7 +44,8 @@ export function createAdminService(token: string) {
     },
 
     async toggleCardStatus(cardId: string, isActive: boolean): Promise<void> {
-      await api.put(`/admin/cards/${cardId}/status`, { is_active: isActive });
+      const status = isActive ? 'active' : 'inactive';
+      const response = await api.put(`/admin/cards/${cardId}/status`, { status });
     }
   };
 } 

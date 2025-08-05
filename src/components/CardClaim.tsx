@@ -27,7 +27,6 @@ export const CardClaim: React.FC = () => {
         // Check if user already has a card (single card model)
         try {
           const userCard = await cardService.getCard();
-          console.log('User card response:', userCard);
           
           if (userCard && userCard.status === 'claimed') {
             setCardStatus('claimed');
@@ -37,7 +36,6 @@ export const CardClaim: React.FC = () => {
         } catch (cardError: any) {
           if (cardError.message === 'NO_CARD_FOUND') {
             // User doesn't have a card yet - this is normal
-            console.log('User has no card yet, available to create:', cardError);
             setCardStatus('available');
           } else {
             // Real error

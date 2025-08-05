@@ -13,6 +13,13 @@ export const CardManagement: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    cardId: string;
+    cardName: string;
+    isActive: boolean;
+    action: 'activate' | 'deactivate';
+  } | null>(null);
 
   useEffect(() => {
     fetchCards();
@@ -26,7 +33,6 @@ export const CardManagement: React.FC = () => {
       const cardService = createCardService(token);
       
       const cardsData = await cardService.getAllCards();
-      console.log(cardsData);
       // Ensure cardsData is an array
       const cardsArray = Array.isArray(cardsData) ? cardsData : [];
       setCards(cardsArray);
@@ -43,12 +49,17 @@ export const CardManagement: React.FC = () => {
       const token = await getAccessToken();
       const adminService = createAdminService(token);
       
-      await adminService.toggleCardStatus(cardId, isActive);
+      // Send the OPPOSITE of the current status
+      // If card is currently active, we want to deactivate it (send false)
+      // If card is currently inactive, we want to activate it (send true)
+      const newStatus = !isActive;
+      
+      await adminService.toggleCardStatus(cardId, newStatus);
       
       // Update local state
       setCards(cards.map(card => 
         card.card_id === cardId 
-          ? { ...card, status: !isActive ? 'active' : 'inactive' }
+          ? { ...card, status: newStatus ? 'active' : 'inactive' }
           : card
       ));
 
@@ -68,6 +79,36 @@ export const CardManagement: React.FC = () => {
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
     }
+  };
+
+  const showConfirmationModal = (card: Card, isActive: boolean) => {
+    const action = isActive ? 'deactivate' : 'activate';
+    setPendingAction({
+      cardId: card.card_id,
+      cardName: card.name,
+      isActive,
+      action
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    
+    try {
+      await handleToggleCardStatus(pendingAction.cardId, pendingAction.isActive);
+      setShowConfirmModal(false);
+      setPendingAction(null);
+    } catch (error) {
+      console.error('Error in confirmation action:', error);
+      setShowConfirmModal(false);
+      setPendingAction(null);
+    }
+  };
+
+  const handleCancelAction = () => {
+    setShowConfirmModal(false);
+    setPendingAction(null);
   };
 
   // Filter cards based on search term and status filter
@@ -170,21 +211,21 @@ export const CardManagement: React.FC = () => {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Card ID:</span>
-                <span className="font-mono text-xs">{card.card_id}</span>
+                <span className="font-mono text-xs text-gray-800">{card.card_id}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">User ID:</span>
-                <span className="font-mono text-xs">{card.user_id}</span>
+                <span className="font-mono text-xs text-gray-800">{card.user_id}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Created:</span>
-                <span className="font-medium">
+                <span className="font-medium text-gray-800">
                   {new Date(card.created_at).toLocaleDateString()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Updated:</span>
-                <span className="font-medium">
+                <span className="font-medium text-gray-800">
                   {new Date(card.updated_at).toLocaleDateString()}
                 </span>
               </div>
@@ -192,7 +233,7 @@ export const CardManagement: React.FC = () => {
             
             <div className="flex space-x-2">
               <button
-                onClick={() => handleToggleCardStatus(card.card_id, card.status === 'active')}
+                onClick={() => showConfirmationModal(card, card.status === 'active')}
                 className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                   card.status === 'active'
                     ? 'bg-red-500 hover:bg-red-600 text-white'
@@ -314,7 +355,7 @@ export const CardManagement: React.FC = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   onClick={() => {
-                    handleToggleCardStatus(selectedCard.card_id, selectedCard.status === 'active');
+                    showConfirmationModal(selectedCard, selectedCard.status === 'active');
                     setShowCardModal(false);
                   }}
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
@@ -332,6 +373,69 @@ export const CardManagement: React.FC = () => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && pendingAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
+                pendingAction.action === 'deactivate' 
+                  ? 'bg-red-100' 
+                  : 'bg-green-100'
+              }`}>
+                <svg className={`w-6 h-6 ${
+                  pendingAction.action === 'deactivate' 
+                    ? 'text-red-600' 
+                    : 'text-green-600'
+                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Confirm {pendingAction.action === 'deactivate' ? 'Deactivation' : 'Activation'}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to {pendingAction.action} this card?
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h4 className="font-medium text-gray-900 mb-2">Card Details:</h4>
+              <div className="text-sm text-gray-600">
+                <p><strong>Name:</strong> {pendingAction.cardName}</p>
+                <p><strong>Action:</strong> {pendingAction.action === 'deactivate' ? 'Deactivate' : 'Activate'}</p>
+                <p><strong>Impact:</strong> {
+                  pendingAction.action === 'deactivate' 
+                    ? 'This card will no longer be visible to users' 
+                    : 'This card will become visible to users again'
+                }</p>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCancelAction}
+                className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors ${
+                  pendingAction.action === 'deactivate'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
+              >
+                {pendingAction.action === 'deactivate' ? 'Deactivate' : 'Activate'}
+              </button>
             </div>
           </div>
         </div>

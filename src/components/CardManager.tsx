@@ -41,7 +41,7 @@ export const CardManager: React.FC<CardManagerProps> = ({ username, userId }) =>
   });
 
   useEffect(() => {
-    console.log('CardManager: username =', username, 'userId =', userId);
+  
     if (username) {
       loadCard();
     }

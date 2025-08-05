@@ -66,24 +66,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
-      console.log('Auth0 user data:', user);
       const token = await getCachedToken();
       const userService = createUserService(token);
       
-      console.log('Attempting to get current user...');
       try {
         const currentUser = await userService.getCurrentUser();
-        console.log('Current user found:', currentUser);
         setUserData(currentUser);
       } catch (error) {
-        console.log('User not found, creating new user...');
         const newUser = await userService.createUser({
           email: user.email!,
           name: user.name || user.email!,
           picture: user.picture || '',
           username: '' // Let the backend handle the username
         });
-        console.log('New user created:', newUser);
         setUserData(newUser);
       }
     } catch (error) {

@@ -42,6 +42,12 @@ export function Profile() {
   const [userLinks, setUserLinks] = useState<Record<string, string> | null>(null);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [profileWithImages, setProfileWithImages] = useState<ProfileWithImages | null>(null);
+  const [cardStatus, setCardStatus] = useState<'active' | 'inactive' | 'loading' | 'error'>('loading');
+
+  // Add a custom setter to log card status changes
+  const setCardStatusWithLog = (status: 'active' | 'inactive' | 'loading' | 'error') => {
+    setCardStatus(status);
+  };
 
   // Load profile with images
   const loadProfileWithImages = async () => {
@@ -56,6 +62,51 @@ export function Profile() {
     }
   };
 
+  // Check card status for the profile being viewed
+  const checkCardStatus = async (targetUsername: string) => {
+    try {
+      setCardStatusWithLog('loading');
+      const token = await getAccessToken();
+      const cardService = createCardService(token);
+      
+      // Get card by username
+      const response = await cardService.getCardByUsername(targetUsername);
+      
+      // Extract card from response
+      const card = response.card;
+      
+      const finalStatus = card.status === 'active' ? 'active' : 'inactive';
+      setCardStatusWithLog(finalStatus);
+    } catch (error: any) {
+      console.error('❌ Error checking card status:', error);
+      if (error.message === 'NO_CARD_FOUND') {
+        setCardStatusWithLog('active'); // Assume active if no card found
+      } else if (error.message === 'INVALID_RESPONSE') {
+        setCardStatusWithLog('active'); // Assume active if response is invalid
+      } else if (error.message === 'API_ERROR') {
+        setCardStatusWithLog('active'); // Assume active if API fails
+      } else {
+        console.error('❌ Unexpected error, assuming active status');
+        setCardStatusWithLog('active'); // Assume active for any other error
+      }
+    }
+  };
+
+  // Check card status for anonymous users
+  const checkPublicCardStatus = async (targetUsername: string) => {
+    try {
+      setCardStatusWithLog('loading');
+      const cardService = createCardService('');
+      const result = await cardService.getPublicCardStatus(targetUsername);
+      
+      const finalStatus = result.status === 'active' ? 'active' : 'inactive';
+      setCardStatusWithLog(finalStatus);
+    } catch (error) {
+      console.error('❌ Error checking public card status:', error);
+      setCardStatusWithLog('active'); // Assume active if public check fails
+    }
+  };
+
   useEffect(() => {
     const initializeUser = async () => {
       try {
@@ -64,35 +115,36 @@ export function Profile() {
         
         if (username) {
           // If username is provided in URL params, fetch that profile
-          console.log('🔍 Fetching profile for username:', username);
           
           if (isAuthenticated) {
             // Authenticated user - use authenticated service
             const token = await getAccessToken();
             const profileService = createProfileService(token);
             const response = await profileService.getProfileByUsername(username);
-            console.log('✅ Profile data received:', response);
             setProfileData(response);
+            
+            // Check card status for the profile being viewed
+            await checkCardStatus(username);
           } else {
             // Anonymous user - use public service
             const profileService = createProfileService('');
             const response = await profileService.getPublicProfile(username);
     
             setProfileData(response);
+            
+            // Check public card status for anonymous users
+            await checkPublicCardStatus(username);
           }
         } else if (isAuthenticated && getUsernameFromUserData(userData)) {
           // If no username in URL but user is authenticated, redirect to their profile
           const username = getUsernameFromUserData(userData);
-          console.log('ℹ️ Redirecting to user profile:', username);
           navigate(`/profile/${username}`);
           return;
         } else if (isAuthenticated && !getUsernameFromUserData(userData)) {
           // Authenticated user but no username - might be a new user
-          console.log('ℹ️ Authenticated user without username - showing welcome message');
           setProfileData(null);
         } else {
           // If not authenticated and no username, don't make any requests
-          console.log('ℹ️ No profile request needed - not authenticated and no username');
           setProfileData(null);
         }
 
@@ -101,7 +153,6 @@ export function Profile() {
         console.error('❌ Error fetching profile:', error);
         if (error.response?.status === 404) {
           // Profile not found - this is normal for new users
-          console.log('ℹ️ Profile not found - showing welcome message for new user');
           setProfileData(null);
         } else {
           setError('Failed to load profile');
@@ -218,7 +269,6 @@ export function Profile() {
     } catch (error: any) {
       if (error.message === 'NO_PROFILE_FOUND') {
         // User doesn't have a profile yet - this is normal for new users
-        console.log('No profile found for user - this is normal for new users');
         setUserLinks({});
       } else {
         console.error('Error fetching user links:', error);
@@ -235,7 +285,64 @@ export function Profile() {
       const token = await getAccessToken();
       const profileService = createProfileService(token);
       const { links, user } = await profileService.getUserLinks(targetUsername);
-      setUserLinks(links);
+      
+      // Transform links data to ensure proper format
+      const transformLinks = (links: any): Record<string, string> => {
+        console.log('Authenticated transformLinks input:', links);
+        console.log('Authenticated transformLinks type:', typeof links);
+        console.log('Authenticated transformLinks isArray:', Array.isArray(links));
+        
+        if (!links) return {};
+        
+        // If links is already a proper object with string keys, return as is
+        if (typeof links === 'object' && !Array.isArray(links)) {
+          console.log('Authenticated processing as object');
+          const transformed: Record<string, string> = {};
+          Object.entries(links).forEach(([key, value]) => {
+            console.log('Authenticated object entry:', key, value);
+            // If key is numeric, use a default name
+            if (/^\d+$/.test(key)) {
+              transformed[`Link ${parseInt(key) + 1}`] = value as string;
+            } else {
+              transformed[key] = value as string;
+            }
+          });
+          console.log('Authenticated transformed object result:', transformed);
+          return transformed;
+        }
+        
+        // If links is an array, convert to object
+        if (Array.isArray(links)) {
+          console.log('Authenticated processing as array');
+          const transformed: Record<string, string> = {};
+          links.forEach((link, index) => {
+            console.log('Authenticated array item:', index, link, typeof link);
+            if (typeof link === 'object' && link.name && link.url) {
+              console.log('Authenticated object with name and url:', link.name, link.url);
+              transformed[link.name] = link.url;
+            } else if (typeof link === 'object' && link.key && link.value) {
+              console.log('Authenticated object with key and value:', link.key, link.value);
+              transformed[link.key] = link.value;
+            } else if (typeof link === 'string') {
+              console.log('Authenticated string link:', link);
+              transformed[`Link ${index + 1}`] = link;
+            } else {
+              console.log('Authenticated unknown link format:', link);
+            }
+          });
+          console.log('Authenticated transformed array result:', transformed);
+          return transformed;
+        }
+        
+        console.log('Authenticated no transformation applied, returning empty object');
+        return {};
+      };
+      
+      const transformedLinks = transformLinks(links);
+      console.log('Authenticated user viewing other profile - original links:', links);
+      console.log('Authenticated user viewing other profile - transformed links:', transformedLinks);
+      
+      setUserLinks(transformedLinks);
       // Note: We could also update profile data with user info if needed
     } catch (error) {
       console.error('Error fetching other user links:', error);
@@ -364,10 +471,9 @@ export function Profile() {
   const handleProfileUpdate = (updatedProfile: any) => {
     setProfileWithImages(prev => prev ? { ...prev, profile: updatedProfile } : null);
     // TODO: Update profile in database
-    console.log('Profile updated:', updatedProfile);
   };
 
-  if (isLoading) {
+  if (isLoading || cardStatus === 'loading') {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -441,12 +547,72 @@ export function Profile() {
     );
   }
 
+
+
   // Show anonymous profile view for non-authenticated users viewing someone's profile
   if (!isAuthenticated && username && profileData && profileData.profile) {
+    // Debug: Log the links data to see what we're getting
+    console.log('Anonymous profile links data:', profileData.profile.links);
+    
+    // Transform links data to ensure proper format
+    const transformLinks = (links: any): Record<string, string> => {
+      console.log('transformLinks input:', links);
+      console.log('transformLinks type:', typeof links);
+      console.log('transformLinks isArray:', Array.isArray(links));
+      
+      if (!links) return {};
+      
+      // If links is already a proper object with string keys, return as is
+      if (typeof links === 'object' && !Array.isArray(links)) {
+        console.log('Processing as object');
+        const transformed: Record<string, string> = {};
+        Object.entries(links).forEach(([key, value]) => {
+          console.log('Object entry:', key, value);
+          // If key is numeric, use a default name
+          if (/^\d+$/.test(key)) {
+            transformed[`Link ${parseInt(key) + 1}`] = value as string;
+          } else {
+            transformed[key] = value as string;
+          }
+        });
+        console.log('Transformed object result:', transformed);
+        return transformed;
+      }
+      
+              // If links is an array, convert to object
+        if (Array.isArray(links)) {
+          console.log('Processing as array');
+          const transformed: Record<string, string> = {};
+          links.forEach((link, index) => {
+            console.log('Array item:', index, link, typeof link);
+            if (typeof link === 'object' && link.name && link.url) {
+              console.log('Object with name and url:', link.name, link.url);
+              transformed[link.name] = link.url;
+            } else if (typeof link === 'object' && link.key && link.value) {
+              console.log('Object with key and value:', link.key, link.value);
+              transformed[link.key] = link.value;
+            } else if (typeof link === 'string') {
+              console.log('String link:', link);
+              transformed[`Link ${index + 1}`] = link;
+            } else {
+              console.log('Unknown link format:', link);
+            }
+          });
+          console.log('Transformed array result:', transformed);
+          return transformed;
+        }
+      
+      console.log('No transformation applied, returning empty object');
+      return {};
+    };
+    
+    const transformedLinks = transformLinks(profileData.profile.links);
+    console.log('Transformed links:', transformedLinks);
+    
     return (
       <AnonymousProfile
         profile={profileData.profile}
-        links={profileData.profile.links || {}}
+        links={transformedLinks}
                   user={{
             username: username || '',
             name: profileData.profile.name || '',
@@ -455,6 +621,7 @@ export function Profile() {
             email: profileData.profile.email || ''
           }}
         backgroundUrl={profileData.profile.background_image}
+        cardStatus={cardStatus}
       />
     );
   }
@@ -504,6 +671,71 @@ export function Profile() {
               Start Setting Up Your Profile
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show deactivated card message for authenticated users viewing their own deactivated card
+  
+  if (isAuthenticated && isOwnProfile && cardStatus === 'inactive') {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Your Card Has Been Deactivated</h2>
+          <p className="text-gray-600 mb-6">
+            Your business card has been deactivated by an administrator and is no longer visible to other users.
+          </p>
+          <p className="text-gray-500 mb-8">
+            If you believe this is an error, please contact the development team for assistance.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-600 transition-colors duration-200"
+            >
+              Go Home
+            </button>
+            <button
+              onClick={() => navigate('/admin')}
+              className="px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg shadow-sm hover:bg-gray-600 transition-colors duration-200"
+            >
+              Contact Support
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show deactivated card message for authenticated users viewing someone else's deactivated card
+  if (isAuthenticated && !isOwnProfile && cardStatus === 'inactive') {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-white shadow-lg rounded-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Card Deactivated</h2>
+          <p className="text-gray-600 mb-6">
+            This business card has been deactivated and is no longer available for viewing.
+          </p>
+          <p className="text-gray-500 mb-8">
+            If you believe this is an error, please contact the development team for assistance.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-600 transition-colors duration-200"
+          >
+            Go Home
+          </button>
         </div>
       </div>
     );
